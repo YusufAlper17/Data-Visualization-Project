@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -92,6 +94,28 @@ LABELS = {
     "gender": "Gender",
 }
 
+# (column, bar colour) — overview interactive distribution; order = selectbox order.
+OVERVIEW_DIST_VARS: list[tuple[str, str]] = [
+    ("final_grade", "#2563EB"),
+    ("focus_score", "#8B5CF6"),
+    ("study_hours_per_day", "#10B981"),
+    ("sleep_hours", "#F59E0B"),
+    ("productivity_score", "#6366F1"),
+    ("stress_level", "#EF4444"),
+    ("screen_time_hours", "#EC4899"),
+    ("phone_usage_hours", "#64748B"),
+    ("social_media_hours", "#F97316"),
+    ("youtube_hours", "#FB7185"),
+    ("gaming_hours", "#A855F7"),
+    ("coffee_intake_mg", "#78716C"),
+    ("exercise_minutes", "#22C55E"),
+    ("assignments_completed", "#0D9488"),
+    ("attendance_percentage", "#0284C7"),
+    ("breaks_per_day", "#CA8A04"),
+    ("distraction_ratio", "#7C3AED"),
+    ("age", "#4B5563"),
+]
+
 INK = "#0A0A0A"
 MUTED = "#71717A"
 GRID = "#ECECEC"
@@ -101,7 +125,7 @@ CARD = "#FFFFFF"
 st.set_page_config(
     page_title="Student Productivity Dashboard",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -131,43 +155,236 @@ def inject_theme() -> None:
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             }
 
+            html { scroll-behavior: smooth; }
             .stApp { background: var(--paper); color: var(--ink); }
 
-            [data-testid="stHeader"] { background: transparent; }
-            [data-testid="stSidebarCollapsedControl"] { display: none; }
-            section[data-testid="stSidebar"] { display: none; }
+            [data-testid="stHeader"] { background: transparent; display: none !important; }
             footer, #MainMenu { visibility: hidden; }
 
             .block-container {
                 padding-top: 1.4rem;
-                padding-bottom: 3rem;
-                max-width: 1480px;
+                padding-bottom: 4rem;
+                max-width: 1640px;
+            }
+
+            /* Streamlit selectbox: no text I-beam on hover (pick-only control). */
+            [data-testid="stSelectbox"],
+            [data-testid="stSelectbox"] * {
+                cursor: pointer !important;
+            }
+            [data-testid="stSelectbox"] input {
+                caret-color: transparent !important;
+            }
+
+            /* ───── Sidebar (real st.sidebar) ───── */
+            section[data-testid="stSidebar"] {
+                background: #FFFFFF;
+                border-right: 1px solid var(--grid);
+                width: 260px !important;
+                min-width: 260px !important;
+            }
+            section[data-testid="stSidebar"] > div {
+                padding-top: 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+                padding: 0 !important;
+                overflow-x: visible !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+                padding: 0 0.8rem 1.4rem 0.8rem !important;
+            }
+            /* Hide the native sidebar collapse button (icon font fallback shows as raw text) */
+            [data-testid="stSidebarCollapseButton"],
+            [data-testid="stSidebarCollapsedControl"],
+            [data-testid="stBaseButton-headerNoPadding"],
+            section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {
+                display: none !important;
+            }
+
+            /* Brand block */
+            .sb-brand {
+                display: flex;
+                align-items: center;
+                gap: 0.7rem;
+                padding: 1.3rem 0.4rem 1.1rem;
+                border-bottom: 1px solid var(--grid);
+                margin: 0 -0.4rem 0.8rem -0.4rem;
+            }
+            .sb-logo {
+                width: 36px; height: 36px;
+                flex-shrink: 0;
+                border-radius: 10px;
+                background: #18181B;
+                display: flex; align-items: center; justify-content: center;
+            }
+            .sb-brand-text {
+                display: flex; flex-direction: column;
+                line-height: 1.18;
+            }
+            .sb-brand-name {
+                color: var(--ink);
+                font-size: 0.92rem;
+                font-weight: 700;
+                letter-spacing: -0.018em;
+            }
+            .sb-brand-sub {
+                color: var(--muted);
+                font-size: 0.72rem;
+                font-weight: 500;
+                margin-top: 1px;
+            }
+
+            /* Cohort — compact typographic hierarchy (not a single long sentence) */
+            .sb-cohort {
+                padding: 0.65rem 0.75rem 0.7rem;
+                border: 1px solid var(--grid);
+                border-radius: 10px;
+                background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
+                margin: 0.2rem 0 0.85rem 0;
+            }
+            .sb-cohort-kicker {
+                font-size: 0.62rem;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--soft);
+                margin-bottom: 0.35rem;
+            }
+            .sb-cohort-row {
+                display: flex;
+                align-items: baseline;
+                flex-wrap: wrap;
+                gap: 0.15rem 0.35rem;
+                line-height: 1.15;
+            }
+            .sb-cohort-main {
+                font-size: 1.15rem;
+                font-weight: 750;
+                letter-spacing: -0.03em;
+                color: var(--ink);
+                font-variant-numeric: tabular-nums;
+            }
+            .sb-cohort-den {
+                font-size: 0.72rem;
+                font-weight: 500;
+                color: var(--muted);
+                font-variant-numeric: tabular-nums;
+            }
+            .sb-cohort-pct {
+                margin-top: 0.35rem;
+                font-size: 0.68rem;
+                color: var(--muted);
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* Meta labels: read as UI chrome, not page section titles */
+            .sb-label {
+                margin: 0.55rem 0 0.38rem 0;
+                padding: 0 0.1rem;
+            }
+            .sb-label-inner {
+                display: inline-block;
+                padding: 0.22rem 0.5rem;
+                border-radius: 6px;
+                background: #F4F4F5;
+                border: 1px solid #E4E4E7;
+                color: #52525B;
+                font-size: 0.58rem;
+                font-weight: 750;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+            }
+
+            /* Section nav: no outer frame — only the active row gets a rectangle (scroll-spy). */
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"]:has(a[href^="#section-"]) {
+                margin-bottom: 0.35rem;
+            }
+
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"] {
+                display: flex !important;
+                align-items: center !important;
+                box-sizing: border-box !important;
+                padding: 10px 12px !important;
+                border-radius: 10px !important;
+                border: 1px solid transparent !important;
+                outline: none !important;
+                color: #71717A !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                text-decoration: none !important;
+                transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease,
+                    box-shadow 0.22s ease;
+                line-height: 1.25 !important;
+                margin: 2px 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"]:not(.active) {
+                box-shadow: none !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"]:hover:not(.active) {
+                background: rgba(24, 24, 27, 0.04) !important;
+                color: #3F3F46 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"]:focus-visible:not(.active) {
+                box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.14) !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"].active:focus-visible {
+                box-shadow:
+                    0 0 0 1px rgba(24, 24, 27, 0.06),
+                    0 2px 6px rgba(24, 24, 27, 0.07) !important;
+            }
+            /* Exactly one strong frame when .active */
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a[href^="#section-"].active {
+                background: #FFFFFF !important;
+                color: var(--ink) !important;
+                font-weight: 650 !important;
+                border-color: #27272A !important;
+                box-shadow:
+                    0 0 0 1px rgba(24, 24, 27, 0.06),
+                    0 2px 6px rgba(24, 24, 27, 0.07) !important;
+            }
+            /* Tighten paragraphs that wrap the link list. */
+            section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+                margin: 0 !important;
+            }
+
+            /* Filter / glossary popover triggers inside sidebar */
+            section[data-testid="stSidebar"] [data-testid="stPopover"] {
+                width: 100%;
+                margin-bottom: 6px;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPopover"] button {
+                font-weight: 600 !important;
+                border: 1px solid var(--grid) !important;
+                background: #FFFFFF !important;
+                color: var(--ink) !important;
+                border-radius: 10px !important;
+                padding: 0.55rem 0.85rem !important;
+                box-shadow: none !important;
+                font-size: 0.86rem !important;
+                width: 100% !important;
+                justify-content: flex-start !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPopover"] button:hover {
+                background: #FAFAFA !important;
+                border-color: #D4D4D8 !important;
+            }
+
+            /* Filters / Glossary popover body: fit viewport, scroll inside (sidebar popovers get clipped). */
+            div[data-baseweb="popover"] {
+                max-height: min(88vh, 920px) !important;
+                max-width: min(560px, calc(100vw - 20px)) !important;
+                min-width: min(100%, 300px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                box-sizing: border-box !important;
+                z-index: 1000002 !important;
+                -webkit-overflow-scrolling: touch;
+                padding: 0.35rem 0.5rem !important;
             }
 
             h1 { letter-spacing: -0.045em; }
             h2 { letter-spacing: -0.030em; }
             h3 { letter-spacing: -0.020em; }
-
-            .brand-row {
-                display: flex;
-                align-items: center;
-                gap: 0.55rem;
-                padding: 0.55rem 0.2rem;
-            }
-            .brand-dot {
-                width: 9px; height: 9px;
-                border-radius: 999px;
-                background: var(--ink);
-                display: inline-block;
-            }
-            .brand-title {
-                color: var(--ink);
-                font-weight: 700;
-                font-size: 1.02rem;
-                letter-spacing: -0.020em;
-            }
-            .brand-sep { color: var(--soft); margin: 0 0.15rem; }
-            .brand-meta { color: var(--muted); font-size: 0.86rem; }
 
             .page-kicker {
                 margin-top: 0.4rem;
@@ -195,104 +412,15 @@ def inject_theme() -> None:
                 max-width: 920px;
             }
 
-            /* nav pills via Streamlit buttons */
-            .nav-wrap div[data-testid="column"] .stButton button {
-                background: transparent;
-                color: var(--muted);
-                border: 1px solid transparent;
-                border-radius: 10px;
-                padding: 0.45rem 0.7rem;
-                font-weight: 550;
-                font-size: 0.95rem;
-                box-shadow: none;
-                transition: all 0.14s ease;
-            }
-            .nav-wrap div[data-testid="column"] .stButton button:hover {
-                background: #F4F4F5;
-                color: var(--ink);
-            }
-            .nav-wrap div[data-testid="column"] .stButton button[kind="primary"] {
-                background: #18181B !important;
-                color: #FFFFFF !important;
-                border-color: #18181B !important;
-            }
-
             /* Hide all raw icon text fallbacks inside popover buttons (tune, expand_more). */
             [data-testid="stPopover"] button [data-testid*="stIconMaterial"],
             [data-testid="stPopover"] button [data-testid*="Icon"],
             [data-testid="stPopover"] button .material-symbols-outlined,
-            [data-testid="stPopover"] button span[class*="material"],
-            [data-testid="stPopover"] button > div > div > span:not(:only-child):not(.label-text) {
+            [data-testid="stPopover"] button span[class*="material"] {
                 display: none !important;
             }
-            [data-testid="stPopover"] button {
-                font-weight: 600;
-                border: 1px solid var(--grid) !important;
-                background: var(--card) !important;
-                color: var(--ink) !important;
-                border-radius: 12px !important;
-                padding: 0.55rem 1rem !important;
-                box-shadow: 0 1px 0 rgba(17, 24, 39, 0.02) !important;
-            }
-            [data-testid="stPopover"] button:hover {
-                border-color: #D4D4D8 !important;
-                background: #FAFAFA !important;
-            }
-            [data-testid="stPopover"] button p {
-                font-weight: 600;
-                margin: 0;
-                color: var(--ink);
-            }
-            /* Brand bar */
-            .brand-card {
-                display: flex;
-                align-items: center;
-                gap: 0.85rem;
-                padding: 0.55rem 0.2rem;
-            }
-            .brand-mark {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 30px; height: 30px;
-                border-radius: 9px;
-                background: linear-gradient(135deg, #18181B 0%, #3F3F46 100%);
-                color: #FFFFFF;
-                font-weight: 800;
-                font-size: 0.86rem;
-                letter-spacing: -0.02em;
-            }
-            .brand-stack { display: flex; flex-direction: column; gap: 2px; }
-            .brand-name {
-                color: var(--ink);
-                font-size: 1.04rem;
-                font-weight: 750;
-                letter-spacing: -0.022em;
-                line-height: 1.15;
-            }
-            .brand-sub {
-                color: var(--muted);
-                font-size: 0.78rem;
-                line-height: 1.2;
-            }
-            .pill-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.35rem;
-                padding: 0.28rem 0.55rem;
-                border-radius: 999px;
-                background: #F4F4F5;
-                color: #18181B;
-                font-size: 0.74rem;
-                font-weight: 650;
-                letter-spacing: 0.01em;
-                border: 1px solid var(--grid);
-            }
-            .pill-dot {
-                width: 6px; height: 6px;
-                border-radius: 999px;
-                background: #10B981;
-            }
+            [data-testid="stPopover"] button p { margin: 0; }
+
             /* Glossary popover content */
             .glossary-grid {
                 display: grid;
@@ -440,6 +568,19 @@ def inject_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+SP_LOGO_SVG = """
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 16 L9 9 L13 13 L20 5" stroke="white" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="4" cy="16" r="1.7" fill="white"/>
+  <circle cx="9" cy="9" r="1.7" fill="white"/>
+  <circle cx="13" cy="13" r="1.7" fill="white"/>
+  <circle cx="20" cy="5" r="1.7" fill="white"/>
+  <path d="M4 19 L20 19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+</svg>
+"""
 
 
 def set_page_accent(page_key: str) -> None:
@@ -613,7 +754,7 @@ def style_fig(fig: go.Figure, height: int = 380, legend_below: bool = True) -> g
 
 
 def render_chart(fig: go.Figure) -> None:
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
 # ---------------------------------------------------------------------------
@@ -755,7 +896,7 @@ def reset_filters(df: pd.DataFrame) -> None:
 def render_filter_popover(df: pd.DataFrame) -> None:
     init_filters(df)
     label = f"Filters  ({active_filter_count(df)})"
-    with st.popover(label, use_container_width=True):
+    with st.popover(label, width="stretch"):
         st.markdown("**Filter the cohort**")
         st.caption("Filters apply to every page.")
         st.session_state.f_gender = st.multiselect(
@@ -780,7 +921,7 @@ def render_filter_popover(df: pd.DataFrame) -> None:
             "Study hours (h)", 0.0, study_max, st.session_state.f_study, 0.5,
         )
         st.divider()
-        if st.button("Reset filters", use_container_width=True):
+        if st.button("Reset filters", width="stretch"):
             reset_filters(df)
             st.rerun()
 
@@ -874,7 +1015,7 @@ GLOSSARY_METRICS: list[tuple[str, str]] = [
 
 def render_glossary_popover() -> None:
     label = f"Glossary  ({sum(len(items) for _, items in GLOSSARY_GROUPS) + len(GLOSSARY_METRICS)})"
-    with st.popover(label, use_container_width=True):
+    with st.popover(label, width="stretch"):
         st.markdown("**What the terms mean**")
         st.caption("Definitions for every derived label used in the charts.")
         for group_title, items in GLOSSARY_GROUPS:
@@ -914,50 +1055,212 @@ def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def render_header(df: pd.DataFrame, view: pd.DataFrame) -> None:
-    page_label = dict(PAGES).get(st.session_state.get("page", "overview"), "Overview")
+def render_sidebar(df: pd.DataFrame, view: pd.DataFrame) -> None:
+    """Render the real Streamlit sidebar with brand, cohort badge, nav anchors and popovers."""
     share_pct = (len(view) / len(df) * 100) if len(df) else 0
-    h_l, h_r = st.columns([6.2, 3.8], gap="medium")
-    with h_l:
-        st.markdown(
-            f"""
-            <div class="brand-card">
-                <span class="brand-mark">SP</span>
-                <div class="brand-stack">
-                    <span class="brand-name">Student Productivity Dashboard</span>
-                    <span class="brand-sub">Page: <b>{page_label}</b> &middot; Data: Kaggle 20K synthetic cohort</span>
-                </div>
-                <span class="pill-badge"><span class="pill-dot"></span>
-                    {len(view):,} / {len(df):,} students &middot; {share_pct:.1f}% of cohort
-                </span>
+
+    # Brand block + cohort badge (HTML)
+    st.sidebar.markdown(
+        f"""
+        <div class="sb-brand">
+            <span class="sb-logo">{SP_LOGO_SVG}</span>
+            <span class="sb-brand-text">
+                <span class="sb-brand-name">Student Productivity</span>
+                <span class="sb-brand-sub">Dashboard &middot; Kaggle 20K</span>
+            </span>
+        </div>
+        <div class="sb-cohort">
+            <div class="sb-cohort-kicker">Active cohort</div>
+            <div class="sb-cohort-row">
+                <span class="sb-cohort-main">{len(view):,}</span>
+                <span class="sb-cohort-den">/ {len(df):,} students</span>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with h_r:
-        c1, c2 = st.columns(2)
-        with c1:
-            render_filter_popover(df)
-        with c2:
-            render_glossary_popover()
+            <div class="sb-cohort-pct">{share_pct:.1f}% of full dataset after filters</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Navigation anchor links (single long page, scroll-spy active state via JS).
+    # Use <div> wrappers (always allowed by Streamlit's HTML sanitizer) and target the
+    # bare <a> children via the parent class; <nav> and class="sb-link" on <a> get stripped.
+    nav_links = "".join(
+        f'<a href="#section-{key}">{label}</a>' for key, label in PAGES
+    )
+    st.sidebar.markdown(
+        '<div class="sb-label"><span class="sb-label-inner">Page list</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        f'<div class="sb-nav">{nav_links}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Filters & glossary popovers (real Streamlit components)
+    st.sidebar.markdown(
+        '<div class="sb-label"><span class="sb-label-inner">Tools</span></div>',
+        unsafe_allow_html=True,
+    )
+    with st.sidebar:
+        render_filter_popover(df)
+        render_glossary_popover()
 
 
-def render_nav() -> None:
-    st.markdown('<div class="nav-wrap">', unsafe_allow_html=True)
-    cols = st.columns(len(PAGES) + 1)
-    for i, (key, label) in enumerate(PAGES):
-        with cols[i]:
-            is_active = st.session_state.get("page", "overview") == key
-            clicked = st.button(
-                label,
-                key=f"nav_{key}",
-                use_container_width=True,
-                type="primary" if is_active else "secondary",
-            )
-            if clicked:
-                st.session_state.page = key
-                st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+def inject_nav_scroll_spy() -> None:
+    """Run scroll-spy after main blocks exist. Fixes sidebar highlight stuck on Overview.
+
+    (1) Script in sidebar ran before section DOM existed; (2) pickActiveKey used an
+    erroneous early ``break`` so the active key rarely advanced past the first section.
+    """
+    keys_json = json.dumps([k for k, _ in PAGES])
+    st.html(
+        f"""
+        <script>
+        (function() {{
+            var KEYS = {keys_json};
+            var NAV_SEL = 'section[data-testid="stSidebar"] a[href^="#section-"]';
+
+            function navLinks() {{
+                return Array.prototype.slice.call(document.querySelectorAll(NAV_SEL));
+            }}
+
+            function sectionPairs() {{
+                var out = [];
+                KEYS.forEach(function(k) {{
+                    var el = document.getElementById('section-' + k);
+                    if (el) out.push({{ key: k, el: el }});
+                }});
+                return out;
+            }}
+
+            function applyActive(key) {{
+                var sel = '#section-' + key;
+                navLinks().forEach(function(x) {{
+                    x.classList.toggle('active', (x.getAttribute('href') || '') === sel);
+                }});
+            }}
+
+            function collectScrollRoots(fromEl) {{
+                var roots = [];
+                var seen = new Set();
+                function add(el) {{
+                    if (!el || seen.has(el)) return;
+                    seen.add(el);
+                    roots.push(el);
+                }}
+                var p = fromEl;
+                while (p && p !== document.documentElement) {{
+                    add(p);
+                    p = p.parentElement;
+                }}
+                [
+                    document.querySelector('[data-testid="stAppViewContainer"]'),
+                    document.querySelector('[data-testid="stMain"]'),
+                    document.querySelector('[data-testid="stMainBlockContainer"]'),
+                    document.scrollingElement,
+                    document.documentElement,
+                    document.body,
+                ].forEach(add);
+                return roots;
+            }}
+
+            /** Last section whose top has crossed the anchor line (no early break). */
+            function pickActiveKey(pairs) {{
+                var anchor = Math.min(240, Math.max(96, Math.floor(window.innerHeight * 0.2)));
+                var key = pairs.length ? pairs[0].key : KEYS[0];
+                for (var i = 0; i < pairs.length; i++) {{
+                    var top = pairs[i].el.getBoundingClientRect().top;
+                    if (top - 8 <= anchor) {{
+                        key = pairs[i].key;
+                    }}
+                }}
+                return key;
+            }}
+
+            function init() {{
+                var pairs = sectionPairs();
+                var links = navLinks();
+                if (!pairs.length || !links.length) {{
+                    return setTimeout(init, 250);
+                }}
+
+                if (typeof window.__spSpyCleanup === 'function') {{
+                    try {{ window.__spSpyCleanup(); }} catch (e0) {{}}
+                }}
+
+                var rafId = null;
+                function schedule() {{
+                    if (rafId) return;
+                    rafId = requestAnimationFrame(function() {{
+                        rafId = null;
+                        applyActive(pickActiveKey(sectionPairs()));
+                    }});
+                }}
+
+                var sb = document.querySelector('section[data-testid="stSidebar"]');
+                function onNavClick(e) {{
+                    var t = e.target;
+                    if (!t || !t.closest) return;
+                    var a = t.closest('a[href^="#section-"]');
+                    if (!a || !sb || !sb.contains(a)) return;
+                    var href = a.getAttribute('href') || '';
+                    var id = href.replace(/^#/, '');
+                    var target = document.getElementById(id);
+                    if (!target) return;
+                    e.preventDefault();
+                    applyActive(id.replace(/^section-/, ''));
+                    target.scrollIntoView({{ behavior: 'auto', block: 'start' }});
+                    requestAnimationFrame(schedule);
+                    setTimeout(schedule, 100);
+                }}
+                if (sb) {{
+                    sb.addEventListener('click', onNavClick);
+                }}
+
+                var listeners = [];
+                function on(el, ev, fn, opts) {{
+                    el.addEventListener(ev, fn, opts || {{ passive: true }});
+                    listeners.push([el, ev, fn, opts]);
+                }}
+
+                collectScrollRoots(pairs[0].el).forEach(function(r) {{
+                    on(r, 'scroll', schedule);
+                }});
+                on(window, 'scroll', schedule, {{ passive: true, capture: true }});
+                on(window, 'resize', schedule);
+
+                var io = null;
+                if (typeof IntersectionObserver !== 'undefined') {{
+                    io = new IntersectionObserver(schedule, {{
+                        root: null,
+                        rootMargin: '-10% 0px -52% 0px',
+                        threshold: [0, 0.05, 0.25, 0.5, 1],
+                    }});
+                    pairs.forEach(function(p) {{ io.observe(p.el); }});
+                }}
+
+                var pollId = setInterval(schedule, 160);
+
+                window.__spSpyCleanup = function() {{
+                    if (rafId) cancelAnimationFrame(rafId);
+                    clearInterval(pollId);
+                    if (sb) {{
+                        try {{ sb.removeEventListener('click', onNavClick); }} catch (e4) {{}}
+                    }}
+                    listeners.forEach(function(l) {{
+                        try {{ l[0].removeEventListener(l[1], l[2], l[3]); }} catch (e2) {{}}
+                    }});
+                    if (io) {{ try {{ io.disconnect(); }} catch (e3) {{}} }}
+                }};
+
+                schedule();
+            }}
+            setTimeout(init, 0);
+        }})();
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1084,38 +1387,54 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
             )
 
     section_head(
-        "Cohort distributions",
-        "How four headline variables are spread across the selected students. Dashed lines mark the cohort averages.",
+        "Cohort distribution",
+        "Choose a numeric field for the horizontal axis. The histogram, colour, title, "
+        "and dashed cohort average update to match.",
     )
 
-    dist_cols = [
-        ("final_grade", "Final grade", "#2563EB"),
-        ("focus_score", "Focus score", "#8B5CF6"),
-        ("study_hours_per_day", "Daily study hours", "#10B981"),
-        ("sleep_hours", "Sleep hours", "#F59E0B"),
+    dist_pairs = [
+        (c, h) for c, h in OVERVIEW_DIST_VARS
+        if c in view.columns and pd.api.types.is_numeric_dtype(view[c])
+        and view[c].notna().any()
     ]
-    row1 = st.columns(2)
-    row2 = st.columns(2)
-    cells = [row1[0], row1[1], row2[0], row2[1]]
-    for cell, (col, title, color) in zip(cells, dist_cols):
-        with cell:
-            fig = px.histogram(
-                view, x=col, nbins=36,
-                title=f"Distribution of {title.lower()}",
-                color_discrete_sequence=[color],
-                labels={col: friendly(col)},
-            )
-            fig.update_traces(marker_line_width=0, opacity=0.88)
-            mean = view[col].mean()
-            fig.add_vline(
-                x=mean, line_dash="dot", line_color="#0A0A0A",
-                annotation_text=f"Avg {mean:.1f}",
-                annotation_position="top right",
-                annotation_font=dict(size=11, color="#0A0A0A"),
-            )
-            fig.update_yaxes(title="Students")
-            fig.update_layout(showlegend=False)
-            render_chart(style_fig(fig, height=320, legend_below=False))
+    if not dist_pairs:
+        st.caption("No numeric columns in this view for a distribution plot.")
+    else:
+        cols_order = [c for c, _ in dist_pairs]
+        color_by_col = dict(dist_pairs)
+        default_i = cols_order.index("final_grade") if "final_grade" in cols_order else 0
+        x_col = st.selectbox(
+            "Variable on horizontal axis",
+            options=cols_order,
+            index=default_i,
+            format_func=friendly,
+            key="overview_dist_x",
+            # No in-widget typing / caret — classic pick-only dropdown (Streamlit ≥ 1.45).
+            filter_mode=None,
+        )
+        bar_color = color_by_col.get(x_col, "#3B82F6")
+        xl = friendly(x_col)
+        fig = px.histogram(
+            view.dropna(subset=[x_col]),
+            x=x_col,
+            nbins=min(48, max(24, int(np.clip(len(view) ** 0.45, 24, 48)))),
+            title=f"Distribution of {xl.lower()}",
+            color_discrete_sequence=[bar_color],
+            labels={x_col: xl},
+        )
+        fig.update_traces(marker_line_width=0, opacity=0.88)
+        mean = float(view[x_col].mean())
+        fig.add_vline(
+            x=mean,
+            line_dash="dot",
+            line_color="#0A0A0A",
+            annotation_text=f"Cohort average {mean:.2f}",
+            annotation_position="top right",
+            annotation_font=dict(size=12, color="#0A0A0A"),
+        )
+        fig.update_yaxes(title="Students")
+        fig.update_layout(showlegend=False)
+        render_chart(style_fig(fig, height=460, legend_below=False))
 
     section_head(
         "Segment composition and variable impact",
@@ -1881,7 +2200,7 @@ def page_about(df: pd.DataFrame, miss_df: pd.DataFrame, raw_rows: int) -> None:
     if miss_df.empty:
         st.caption("No missing values detected in the raw file.")
     else:
-        st.dataframe(miss_df, use_container_width=True, hide_index=True)
+        st.dataframe(miss_df, width="stretch", hide_index=True)
 
     section_head("Sample of cleaned and enriched data")
     sample_cols = [
@@ -1890,7 +2209,7 @@ def page_about(df: pd.DataFrame, miss_df: pd.DataFrame, raw_rows: int) -> None:
         "study_hours_per_day", "screen_time_hours", "sleep_hours",
         "stress_level", "focus_score", "final_grade",
     ]
-    st.dataframe(df[sample_cols].head(100), use_container_width=True, hide_index=True)
+    st.dataframe(df[sample_cols].head(100), width="stretch", hide_index=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1898,32 +2217,56 @@ def page_about(df: pd.DataFrame, miss_df: pd.DataFrame, raw_rows: int) -> None:
 # ---------------------------------------------------------------------------
 
 
+SECTION_RENDERERS = {
+    "overview": "page_overview",
+    "digital": "page_digital",
+    "effort": "page_effort",
+    "wellness": "page_wellness",
+    "about": "page_about",
+}
+
+
+def render_section(key: str, view: pd.DataFrame, df: pd.DataFrame,
+                   miss_df: pd.DataFrame, raw_rows: int) -> None:
+    """Wrap each page in a scroll-spy anchor div."""
+    st.markdown(
+        f'<div id="section-{key}" data-section="{key}" style="scroll-margin-top: 16px;">',
+        unsafe_allow_html=True,
+    )
+    set_page_accent(key)
+    if key == "overview":
+        page_overview(view, df)
+    elif key == "digital":
+        page_digital(view, df)
+    elif key == "effort":
+        page_effort(view, df)
+    elif key == "wellness":
+        page_wellness(view, df)
+    elif key == "about":
+        page_about(df, miss_df, raw_rows)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 def main() -> None:
     inject_theme()
     df, miss_df, raw_rows = load_data()
 
-    if "page" not in st.session_state:
-        st.session_state.page = "overview"
-
     init_filters(df)
     view = apply_filters(df)
 
-    set_page_accent(st.session_state.page)
+    render_sidebar(df, view)
 
-    render_header(df, view)
-    render_nav()
+    # Render every section in one long scrollable page
+    for i, (key, _) in enumerate(PAGES):
+        render_section(key, view, df, miss_df, raw_rows)
+        if i < len(PAGES) - 1:
+            st.markdown(
+                "<hr style='margin:2.2rem 0 1.6rem 0; border:none;"
+                " border-top:1px dashed #E4E4E7;'>",
+                unsafe_allow_html=True,
+            )
 
-    page = st.session_state.page
-    if page == "overview":
-        page_overview(view, df)
-    elif page == "digital":
-        page_digital(view, df)
-    elif page == "effort":
-        page_effort(view, df)
-    elif page == "wellness":
-        page_wellness(view, df)
-    elif page == "about":
-        page_about(df, miss_df, raw_rows)
+    inject_nav_scroll_spy()
 
 
 if __name__ == "__main__":
