@@ -463,56 +463,59 @@ def inject_theme() -> None:
 
             /* KPI cards */
             .kpi {
-                padding: 1.05rem 1.15rem;
+                padding: 1.25rem 1.35rem;
                 background: var(--card);
                 border: 1px solid var(--grid);
                 border-radius: 14px;
-                min-height: 130px;
+                min-height: 150px;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
+                gap: 0.55rem;
             }
             .kpi-label {
                 color: var(--muted);
-                font-size: 0.78rem;
+                font-size: 0.84rem;
                 font-weight: 650;
                 letter-spacing: 0.09em;
                 text-transform: uppercase;
             }
             .kpi-value {
                 color: var(--ink);
-                font-size: 2.1rem;
+                font-size: 2.35rem;
                 font-weight: 750;
                 letter-spacing: -0.04em;
-                margin: 0.35rem 0 0.2rem 0;
+                margin: 0.45rem 0 0.3rem 0;
                 line-height: 1.05;
             }
-            .kpi-note { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+            .kpi-note { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
             .kpi-up   { color: #10B981; font-weight: 650; }
             .kpi-down { color: #EF4444; font-weight: 650; }
 
+            .insight-row { margin-top: 1.1rem; }
             .insight {
-                padding: 0.95rem 1.05rem;
+                padding: 1.1rem 1.2rem;
                 border: 1px solid var(--grid);
                 border-radius: 14px;
                 background: var(--card);
+                min-height: 110px;
             }
             .insight .badge {
                 display: inline-block;
-                padding: 0.2rem 0.55rem;
+                padding: 0.22rem 0.6rem;
                 border-radius: 999px;
                 background: #F4F4F5;
                 color: #18181B;
-                font-size: 0.68rem;
+                font-size: 0.72rem;
                 font-weight: 700;
                 letter-spacing: 0.06em;
                 text-transform: uppercase;
             }
             .insight .text {
-                margin-top: 0.5rem;
+                margin-top: 0.6rem;
                 color: var(--ink);
-                font-size: 0.96rem;
-                line-height: 1.5;
+                font-size: 1rem;
+                line-height: 1.55;
                 font-weight: 500;
             }
 
@@ -751,6 +754,41 @@ def style_fig(fig: go.Figure, height: int = 380, legend_below: bool = True) -> g
         title_font=dict(size=13, color=MUTED),
     )
     return fig
+
+
+def heatmap_mean_grade(
+    pivot: pd.DataFrame,
+    *,
+    title: str,
+    x_title: str,
+    y_title: str,
+    hover_template: str,
+) -> go.Figure:
+    """Mean final grade heatmap with per-cell values and categorical axes."""
+    x_cats = [str(c) for c in pivot.columns]
+    y_cats = [str(c) for c in pivot.index]
+    z = pivot.values.astype(float)
+    text = [
+        [f"{v:.1f}" if np.isfinite(v) else "" for v in row]
+        for row in z
+    ]
+    return go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=x_cats,
+            y=y_cats,
+            text=text,
+            texttemplate="%{text}",
+            textfont=dict(size=13, color="#0f172a"),
+            colorscale=[[0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"]],
+            colorbar=dict(title="Mean final grade"),
+            hovertemplate=hover_template,
+        )
+    ).update_layout(
+        title=title,
+        xaxis=dict(title=x_title, type="category", categoryorder="array", categoryarray=x_cats),
+        yaxis=dict(title=y_title, type="category", categoryorder="array", categoryarray=y_cats),
+    )
 
 
 def render_chart(fig: go.Figure) -> None:
@@ -1367,6 +1405,7 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
         pos = corr.idxmax()
         neg = corr.idxmin()
         biggest = corr.abs().idxmax()
+        st.markdown("<div class='insight-row'></div>", unsafe_allow_html=True)
         i1, i2, i3 = st.columns(3)
         with i1:
             insight(
@@ -1689,19 +1728,12 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
             view.assign(sm=sm_bins, gm=gm_bins)
             .pivot_table(index="gm", columns="sm", values="final_grade", aggfunc="mean", observed=True)
         )
-        fig = go.Figure(
-            data=go.Heatmap(
-                z=pivot.values,
-                x=list(pivot.columns.astype(str)),
-                y=list(pivot.index.astype(str)),
-                colorscale=[[0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"]],
-                colorbar=dict(title="Mean final grade"),
-                hovertemplate="Social media: %{x}h<br>Gaming: %{y}h<br>Mean grade: %{z:.1f}<extra></extra>",
-            )
-        )
-        fig.update_layout(
+        fig = heatmap_mean_grade(
+            pivot,
             title="Final grade by social media x gaming",
-            xaxis_title="Social media (h/day)", yaxis_title="Gaming (h/day)",
+            x_title="Social media (h/day)",
+            y_title="Gaming (h/day)",
+            hover_template="Social media: %{x}h<br>Gaming: %{y}h<br>Mean grade: %{z:.1f}<extra></extra>",
         )
         render_chart(style_fig(fig, height=420, legend_below=False))
 
@@ -1889,19 +1921,12 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
             .pivot_table(index="asg", columns="att",
                          values="final_grade", aggfunc="mean", observed=True)
         )
-        fig = go.Figure(
-            data=go.Heatmap(
-                z=pivot.values,
-                x=list(pivot.columns.astype(str)),
-                y=list(pivot.index.astype(str)),
-                colorscale=[[0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"]],
-                colorbar=dict(title="Mean final grade"),
-                hovertemplate="Attendance: %{x}<br>Assignments: %{y}<br>Mean grade: %{z:.1f}<extra></extra>",
-            )
-        )
-        fig.update_layout(
+        fig = heatmap_mean_grade(
+            pivot,
             title="Grade by attendance x assignments band",
-            xaxis_title="Attendance band", yaxis_title="Assignments band",
+            x_title="Attendance band",
+            y_title="Assignments band",
+            hover_template="Attendance: %{x}<br>Assignments: %{y}<br>Mean grade: %{z:.1f}<extra></extra>",
         )
         render_chart(style_fig(fig, height=400, legend_below=False))
 
@@ -2088,21 +2113,14 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
             .pivot_table(index="fb", columns="sb",
                          values="final_grade", aggfunc="mean", observed=True)
         )
-        fig = go.Figure(
-            data=go.Heatmap(
-                z=pivot.values,
-                x=list(pivot.columns.astype(str)),
-                y=list(pivot.index.astype(str)),
-                colorscale=[[0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"]],
-                colorbar=dict(title="Mean final grade"),
-                hovertemplate="Stress: %{x}<br>Focus: %{y}<br>Mean grade: %{z:.1f}<extra></extra>",
-            )
-        )
-        fig.update_layout(
+        fig = heatmap_mean_grade(
+            pivot,
             title="Final grade by focus x stress",
-            xaxis_title="Stress band", yaxis_title="Focus band",
+            x_title="Stress band",
+            y_title="Focus band",
+            hover_template="Stress: %{x}<br>Focus: %{y}<br>Mean grade: %{z:.1f}<extra></extra>",
         )
-        render_chart(style_fig(fig, height=420, legend_below=False))
+        render_chart(style_fig(fig, height=440, legend_below=False))
 
     with row3[1]:
         sample = view.sample(min(len(view), 3500), random_state=34) if len(view) > 3500 else view.copy()
@@ -2123,30 +2141,106 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
 
     section_head(
         "Behavior hierarchy",
-        "Performance segment broken down by stress zone, then sleep quality. Color encodes mean final grade.",
+        "Three nested rings: performance segment → stress zone → sleep quality. "
+        "Slice area is student count; colour is mean final grade for that slice.<br><br>"
+        "<b>Inner ring — segment</b> (final grade bands): "
+        "Critical &lt;60 · At Risk 60–70 · Stable 70–80 · Strong 80–90 · Elite ≥90.<br>"
+        "<b>Middle ring — stress zone</b> (self-report 1–10): "
+        "Calm 1–3 · Managed 4–6 · High 7–8 · Burnout 9–10.<br>"
+        "<b>Outer ring — sleep quality</b> (hours/night): "
+        "Short &lt;6 · Balanced 6–8 · Long ≥8.",
     )
-    sun = (
-        view.groupby(
-            ["performance_segment", "stress_zone", "sleep_quality"],
-            observed=True,
-        )
-        .agg(students=("row_id", "count"), avg_final=("final_grade", "mean"))
+
+    ids: list[str] = []
+    labels: list[str] = []
+    parents: list[str] = []
+    values: list[int] = []
+    colors: list[float] = []
+    total = len(view)
+
+    lvl1 = (
+        view.groupby("performance_segment", observed=True)
+        .agg(n=("row_id", "count"), avg=("final_grade", "mean"))
         .reset_index()
     )
-    sun = sun[sun["students"] > 0]
-    fig = px.sunburst(
-        sun,
-        path=["performance_segment", "stress_zone", "sleep_quality"],
-        values="students",
-        color="avg_final",
-        color_continuous_scale=[
-            [0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"],
-        ],
-        labels={"avg_final": "Mean final grade"},
-        title="Segment -> stress -> sleep hierarchy",
+    lvl1 = lvl1[lvl1["n"] > 0]
+    for _, r in lvl1.iterrows():
+        seg = str(r["performance_segment"])
+        ids.append(seg)
+        labels.append(seg)
+        parents.append("")
+        values.append(int(r["n"])); colors.append(float(r["avg"]))
+
+    lvl2 = (
+        view.groupby(["performance_segment", "stress_zone"], observed=True)
+        .agg(n=("row_id", "count"), avg=("final_grade", "mean"))
+        .reset_index()
     )
-    fig.update_traces(branchvalues="total", insidetextorientation="radial")
-    render_chart(style_fig(fig, height=520, legend_below=False))
+    lvl2 = lvl2[lvl2["n"] > 0]
+    for _, r in lvl2.iterrows():
+        seg = str(r["performance_segment"]); sz = str(r["stress_zone"])
+        nid = f"{seg}/{sz}"
+        ids.append(nid)
+        labels.append(sz)
+        parents.append(seg)
+        values.append(int(r["n"])); colors.append(float(r["avg"]))
+
+    lvl3 = (
+        view.groupby(
+            ["performance_segment", "stress_zone", "sleep_quality"], observed=True,
+        )
+        .agg(n=("row_id", "count"), avg=("final_grade", "mean"))
+        .reset_index()
+    )
+    lvl3 = lvl3[lvl3["n"] > 0]
+    for _, r in lvl3.iterrows():
+        seg = str(r["performance_segment"])
+        sz = str(r["stress_zone"]); sl = str(r["sleep_quality"])
+        nid = f"{seg}/{sz}/{sl}"
+        ids.append(nid)
+        labels.append(sl)
+        parents.append(f"{seg}/{sz}")
+        values.append(int(r["n"])); colors.append(float(r["avg"]))
+
+    customdata = np.array([
+        [grade, n, (n / total * 100 if total else 0.0)]
+        for grade, n in zip(colors, values)
+    ])
+    grade_min = float(view["final_grade"].min())
+    grade_max = float(view["final_grade"].max())
+
+    fig = go.Figure(
+        go.Sunburst(
+            ids=ids,
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            customdata=customdata,
+            marker=dict(
+                colors=colors,
+                colorscale=[[0, "#EF4444"], [0.5, "#F8FAFC"], [1, "#10B981"]],
+                cmin=grade_min,
+                cmax=grade_max,
+                showscale=True,
+                colorbar=dict(title=dict(text="Mean grade")),
+                line=dict(width=1.2, color="#FFFFFF"),
+            ),
+            insidetextorientation="auto",
+            texttemplate="<b>%{label}</b><br>%{customdata[0]:.1f}",
+            textfont=dict(size=12, color="#0f172a"),
+            hovertemplate=(
+                "<b>%{label}</b><br>"
+                "Students: %{customdata[1]:,} (%{customdata[2]:.1f}%)<br>"
+                "Mean grade: %{customdata[0]:.1f}<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(
+        title="Segment -> stress -> sleep hierarchy",
+        margin=dict(l=10, r=10, t=72, b=10),
+    )
+    render_chart(style_fig(fig, height=820, legend_below=False))
 
 
 # ---------------------------------------------------------------------------
