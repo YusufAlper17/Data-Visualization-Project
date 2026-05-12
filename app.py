@@ -191,7 +191,7 @@ def inject_theme() -> None:
                 overflow-x: visible !important;
             }
             section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
-                padding: 0 0.8rem 1.4rem 0.8rem !important;
+                padding: 0.55rem 0.8rem 1.5rem 0.8rem !important;
             }
             /* Hide the native sidebar collapse button (icon font fallback shows as raw text) */
             [data-testid="stSidebarCollapseButton"],
@@ -282,6 +282,10 @@ def inject_theme() -> None:
                 margin: 0.55rem 0 0.38rem 0;
                 padding: 0 0.1rem;
             }
+            .sb-label.sb-label-tools {
+                margin-top: 0.9rem;
+                margin-bottom: 0.45rem;
+            }
             .sb-label-inner {
                 display: inline-block;
                 padding: 0.22rem 0.5rem;
@@ -350,7 +354,10 @@ def inject_theme() -> None:
             /* Filter / glossary popover triggers inside sidebar */
             section[data-testid="stSidebar"] [data-testid="stPopover"] {
                 width: 100%;
-                margin-bottom: 6px;
+                margin-bottom: 0.65rem;
+            }
+            section[data-testid="stSidebar"] [data-testid="stPopover"]:last-of-type {
+                margin-bottom: 0;
             }
             section[data-testid="stSidebar"] [data-testid="stPopover"] button {
                 font-weight: 600 !important;
@@ -369,18 +376,43 @@ def inject_theme() -> None:
                 border-color: #D4D4D8 !important;
             }
 
-            /* Filters / Glossary popover body: fit viewport, scroll inside (sidebar popovers get clipped). */
+            /*
+             * Filters / Glossary popover: keep entirely within the viewport so the header
+             * stays visible. The wrapper Popper assigns absolute coordinates to is the
+             * direct PARENT of data-baseweb="popover"; we cap heights on both layers and
+             * rely on the JS clamper below to nudge the panel down if it would clip the
+             * top edge.
+             */
             div[data-baseweb="popover"] {
-                max-height: min(88vh, 920px) !important;
-                max-width: min(560px, calc(100vw - 20px)) !important;
-                min-width: min(100%, 300px) !important;
+                max-height: min(calc(100vh - 32px), 620px) !important;
+                max-width: min(640px, calc(100vw - 24px)) !important;
+                min-width: min(100%, 320px) !important;
+                width: max-content !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 box-sizing: border-box !important;
                 z-index: 1000002 !important;
                 -webkit-overflow-scrolling: touch;
-                padding: 0.35rem 0.5rem !important;
+                scroll-padding-top: 12px;
+                padding: 1.0rem 0.95rem 1.05rem 0.95rem !important;
+                border-radius: 14px !important;
+                box-shadow: 0 16px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
             }
+            /* Glossary: slightly more inset from panel chrome; card column is 4/5 width */
+            div[data-baseweb="popover"]:has(.glossary-grid) {
+                padding: 0.95rem 0.72rem 1rem 0.72rem !important;
+            }
+            /* The Popper-positioned wrapper itself shouldn't exceed the viewport either. */
+            div[data-baseweb="popover"]:not([data-popper-placement]):has(> div) ,
+            [data-popper-placement] {
+                max-height: calc(100vh - 16px) !important;
+            }
+            /* Compact form controls inside popovers (smaller vertical footprint). */
+            div[data-baseweb="popover"] [data-testid="stMarkdownContainer"] p { margin: 0; }
+            div[data-baseweb="popover"] [data-testid="stCaptionContainer"] { margin-bottom: 0.35rem; }
+            div[data-baseweb="popover"] [data-testid="stSlider"] { padding: 0 !important; }
+            div[data-baseweb="popover"] hr { margin: 0.55rem 0 !important; }
+            div[data-baseweb="popover"] label p { font-size: 0.82rem !important; font-weight: 600 !important; }
 
             h1 { letter-spacing: -0.045em; }
             h2 { letter-spacing: -0.030em; }
@@ -421,44 +453,102 @@ def inject_theme() -> None:
             }
             [data-testid="stPopover"] button p { margin: 0; }
 
-            /* Glossary popover content */
+            /* Glossary popover — card column 80% (4/5) of panel, centered; theme surfaces */
+            .glossary-hero {
+                width: 80%;
+                max-width: 80%;
+                margin: 0 auto 0.35rem auto;
+                padding: 0.15rem 0 0.85rem 0;
+                border-bottom: 1px solid var(--grid);
+                box-sizing: border-box;
+            }
+            .glossary-hero-title {
+                margin: 0 0 0.35rem 0;
+                font-size: 1.08rem;
+                font-weight: 750;
+                letter-spacing: -0.04em;
+                line-height: 1.22;
+                color: var(--ink);
+            }
+            .glossary-hero-sub {
+                margin: 0;
+                font-size: 0.84rem;
+                font-weight: 500;
+                line-height: 1.5;
+                color: var(--muted);
+            }
             .glossary-grid {
                 display: grid;
                 grid-template-columns: 1fr;
-                gap: 0.55rem;
-                margin-top: 0.4rem;
+                gap: 0.4rem;
+                width: 80%;
+                max-width: 80%;
+                margin: 0.5rem auto 0 auto;
+                margin-bottom: 0;
+                padding: 0 0 1rem 0;
+                box-sizing: border-box;
             }
             .gloss-row {
-                display: grid;
-                grid-template-columns: 110px 1fr;
-                gap: 0.6rem;
-                align-items: start;
-                padding: 0.45rem 0.55rem;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.35rem;
+                padding: 0.72rem 0.9rem;
                 border: 1px solid var(--grid);
-                border-radius: 10px;
+                border-radius: 14px;
                 background: var(--card);
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+                min-width: 0;
             }
             .gloss-tag {
                 display: inline-flex;
                 align-items: center;
-                gap: 0.3rem;
+                gap: 0.38rem;
                 font-weight: 700;
                 font-size: 0.78rem;
                 color: var(--ink);
+                letter-spacing: -0.012em;
+                line-height: 1.25;
+                white-space: normal;
             }
             .gloss-tag::before {
                 content: "";
                 display: inline-block;
-                width: 8px; height: 8px;
-                border-radius: 3px;
+                width: 8px;
+                height: 8px;
+                border-radius: 2px;
                 background: var(--tag-color, #18181B);
+                flex-shrink: 0;
             }
-            .gloss-text { color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+            .gloss-text {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                color: var(--muted);
+                font-size: 0.82rem;
+                font-weight: 400;
+                line-height: 1.5;
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
             .gloss-section {
-                margin-top: 0.6rem;
+                width: 80%;
+                max-width: 80%;
+                margin: 1.75rem auto 0 auto;
+                padding: 0.95rem 0 0 0;
+                border-top: 1px solid var(--grid);
                 color: var(--ink);
                 font-weight: 700;
-                font-size: 0.86rem;
+                font-size: 0.98rem;
+                letter-spacing: -0.02em;
+                text-transform: none;
+                line-height: 1.3;
+                box-sizing: border-box;
+            }
+            .gloss-section:first-child {
+                margin: 0.45rem auto 0 auto;
+                padding-top: 0;
+                border-top: none;
             }
 
             /* KPI cards */
@@ -472,6 +562,7 @@ def inject_theme() -> None:
                 flex-direction: column;
                 justify-content: space-between;
                 gap: 0.55rem;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
             }
             .kpi-label {
                 color: var(--muted);
@@ -492,13 +583,26 @@ def inject_theme() -> None:
             .kpi-up   { color: #10B981; font-weight: 650; }
             .kpi-down { color: #EF4444; font-weight: 650; }
 
-            .insight-row { margin-top: 1.1rem; }
+            .insight-row { margin-top: 1.25rem; }
             .insight {
                 padding: 1.1rem 1.2rem;
                 border: 1px solid var(--grid);
                 border-radius: 14px;
                 background: var(--card);
                 min-height: 110px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+            }
+
+            /*
+             * Vertical breathing room between consecutive rows of cards so KPIs and
+             * insight panels never appear to be glued to each other. Uses :has() to
+             * detect cards in adjacent column rows (Streamlit ≥ 1.45 / Chromium ≥ 105).
+             */
+            [data-testid="stHorizontalBlock"]:has(.kpi) + [data-testid="stHorizontalBlock"]:has(.kpi),
+            [data-testid="stHorizontalBlock"]:has(.kpi) + [data-testid="stHorizontalBlock"]:has(.insight),
+            [data-testid="stHorizontalBlock"]:has(.insight) + [data-testid="stHorizontalBlock"]:has(.kpi),
+            [data-testid="stHorizontalBlock"]:has(.insight) + [data-testid="stHorizontalBlock"]:has(.insight) {
+                margin-top: 1.85rem !important;
             }
             .insight .badge {
                 display: inline-block;
@@ -524,6 +628,13 @@ def inject_theme() -> None:
                 background: var(--card);
                 border: 1px solid var(--grid);
                 border-radius: 14px;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            }
+
+            /* Stacked KPIs in a single column (e.g. About page metrics) */
+            [data-testid="column"] [data-testid="stMarkdownContainer"]:has(.kpi)
+                + [data-testid="stMarkdownContainer"]:has(.kpi) {
+                margin-top: 0.75rem;
             }
 
             .section-head {
@@ -565,8 +676,8 @@ def inject_theme() -> None:
                 border: 1px solid var(--grid);
                 border-radius: 14px;
                 padding: 0.9rem;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
             }
-            div[data-baseweb="popover"] { border-radius: 14px; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -937,27 +1048,42 @@ def render_filter_popover(df: pd.DataFrame) -> None:
     with st.popover(label, width="stretch"):
         st.markdown("**Filter the cohort**")
         st.caption("Filters apply to every page.")
-        st.session_state.f_gender = st.multiselect(
-            "Gender",
-            options=sorted(df["gender"].dropna().unique().tolist()),
-            default=st.session_state.f_gender,
-        )
+
         age_min, age_max = int(df["age"].min()), int(df["age"].max())
-        st.session_state.f_age = st.slider("Age", age_min, age_max, st.session_state.f_age)
+        screen_max = float(np.ceil(df["screen_time_hours"].max()))
+        study_max = float(np.ceil(df["study_hours_per_day"].max()))
+
+        # Two-column layout keeps the panel within viewport height so the header stays visible.
+        row1_l, row1_r = st.columns(2, gap="medium")
+        with row1_l:
+            st.session_state.f_gender = st.multiselect(
+                "Gender",
+                options=sorted(df["gender"].dropna().unique().tolist()),
+                default=st.session_state.f_gender,
+            )
+        with row1_r:
+            st.session_state.f_age = st.slider(
+                "Age", age_min, age_max, st.session_state.f_age,
+            )
+
         st.session_state.f_segments = st.multiselect(
             "Performance segment", options=SEGMENT_ORDER, default=st.session_state.f_segments,
         )
-        st.session_state.f_stress = st.slider(
-            "Stress level", 1, 10, st.session_state.f_stress,
-        )
-        screen_max = float(np.ceil(df["screen_time_hours"].max()))
-        st.session_state.f_screen = st.slider(
-            "Screen time (h)", 0.0, screen_max, st.session_state.f_screen, 0.5,
-        )
-        study_max = float(np.ceil(df["study_hours_per_day"].max()))
+
+        row2_l, row2_r = st.columns(2, gap="medium")
+        with row2_l:
+            st.session_state.f_stress = st.slider(
+                "Stress level", 1, 10, st.session_state.f_stress,
+            )
+        with row2_r:
+            st.session_state.f_screen = st.slider(
+                "Screen time (h)", 0.0, screen_max, st.session_state.f_screen, 0.5,
+            )
+
         st.session_state.f_study = st.slider(
             "Study hours (h)", 0.0, study_max, st.session_state.f_study, 0.5,
         )
+
         st.divider()
         if st.button("Reset filters", width="stretch"):
             reset_filters(df)
@@ -1054,8 +1180,13 @@ GLOSSARY_METRICS: list[tuple[str, str]] = [
 def render_glossary_popover() -> None:
     label = f"Glossary  ({sum(len(items) for _, items in GLOSSARY_GROUPS) + len(GLOSSARY_METRICS)})"
     with st.popover(label, width="stretch"):
-        st.markdown("**What the terms mean**")
-        st.caption("Definitions for every derived label used in the charts.")
+        st.markdown(
+            "<div class='glossary-hero'>"
+            "<div class='glossary-hero-title'>What the terms mean</div>"
+            "<p class='glossary-hero-sub'>Definitions for every derived label used in the charts.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
         for group_title, items in GLOSSARY_GROUPS:
             st.markdown(f"<div class='gloss-section'>{group_title}</div>", unsafe_allow_html=True)
             rows = "".join(
@@ -1136,12 +1267,111 @@ def render_sidebar(df: pd.DataFrame, view: pd.DataFrame) -> None:
 
     # Filters & glossary popovers (real Streamlit components)
     st.sidebar.markdown(
-        '<div class="sb-label"><span class="sb-label-inner">Tools</span></div>',
+        '<div class="sb-label sb-label-tools"><span class="sb-label-inner">Tools</span></div>',
         unsafe_allow_html=True,
     )
     with st.sidebar:
         render_filter_popover(df)
         render_glossary_popover()
+
+
+def inject_popover_guard() -> None:
+    """Force every popover to open with its header visible.
+
+    BaseWeb's Popper instance lacks the ``preventOverflow`` modifier, so tall
+    popovers anchored near the bottom of the viewport get placed with their top
+    edge above the window. We reset internal ``scrollTop`` and, when the
+    Popper-positioned wrapper's bounding rect crosses the top edge, shift its
+    inline transform / top so the header is always reachable.
+    """
+    st.html(
+        """
+        <script>
+        (function() {
+            function findPositionedAncestor(el) {
+                var n = el;
+                for (var i = 0; i < 6 && n; i++) {
+                    if (n.style && (n.style.transform || n.style.top || n.style.left)) return n;
+                    var pos = n.nodeType === 1 ? window.getComputedStyle(n).position : '';
+                    if (pos === 'fixed' || pos === 'absolute') return n;
+                    n = n.parentElement;
+                }
+                return el;
+            }
+
+            function shiftDown(el, delta) {
+                if (!isFinite(delta) || Math.abs(delta) < 0.5) return;
+                var s = el.style;
+                if (s.transform) {
+                    var m = s.transform.match(/translate(?:3d)?\\(\\s*([-\\d.]+)px\\s*,\\s*([-\\d.]+)px(?:\\s*,\\s*([-\\d.]+)px)?\\s*\\)/);
+                    if (m) {
+                        var x = parseFloat(m[1]);
+                        var y = parseFloat(m[2]) + delta;
+                        el.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
+                        return;
+                    }
+                }
+                var cs = window.getComputedStyle(el);
+                var currentTop = parseFloat(cs.top);
+                if (isFinite(currentTop)) {
+                    el.style.setProperty('top', (currentTop + delta) + 'px', 'important');
+                }
+            }
+
+            function fixPopover(pop) {
+                if (!pop) return;
+                try { pop.scrollTop = 0; } catch (e) {}
+                var wrapper = findPositionedAncestor(pop);
+                var rect = wrapper.getBoundingClientRect();
+                var vh = window.innerHeight;
+                if (rect.top < 8) {
+                    shiftDown(wrapper, 8 - rect.top);
+                    rect = wrapper.getBoundingClientRect();
+                }
+                if (rect.bottom > vh - 8) {
+                    shiftDown(wrapper, (vh - 8) - rect.bottom);
+                }
+            }
+
+            function attach(pop) {
+                if (!pop || pop._spPopFixed) return;
+                pop._spPopFixed = true;
+                fixPopover(pop);
+                setTimeout(function() { fixPopover(pop); }, 30);
+                setTimeout(function() { fixPopover(pop); }, 120);
+                setTimeout(function() { fixPopover(pop); }, 320);
+            }
+
+            function scan(root) {
+                if (!root || root.nodeType !== 1) return;
+                if (root.matches && root.matches('[data-baseweb="popover"]')) attach(root);
+                if (root.querySelectorAll) {
+                    root.querySelectorAll('[data-baseweb="popover"]').forEach(attach);
+                }
+            }
+
+            if (window.__spPopoverGuard) {
+                try { window.__spPopoverGuard.disconnect(); } catch (e0) {}
+            }
+            var mo = new MutationObserver(function(muts) {
+                muts.forEach(function(m) { m.addedNodes.forEach(scan); });
+            });
+            mo.observe(document.body, { childList: true, subtree: true });
+            window.__spPopoverGuard = mo;
+
+            document.querySelectorAll('[data-baseweb="popover"]').forEach(attach);
+
+            window.addEventListener('resize', function() {
+                document.querySelectorAll('[data-baseweb="popover"]').forEach(function(p) {
+                    p._spPopFixed = false;
+                    attach(p);
+                });
+            });
+        })();
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
 
 
 def inject_nav_scroll_spy() -> None:
@@ -1379,7 +1609,7 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
     top10_grade_mean = top10_grade["final_grade"].mean()
     elite_strong_share = view["performance_segment"].astype(str).isin(["Elite", "Strong"]).mean() * 100
 
-    k1, k2, k3, k4, k5 = st.columns(5)
+    k1, k2, k3, k4, k5 = st.columns(5, gap="large")
     with k1:
         kpi("Students", f"{len(view):,}",
             f"{len(view) / len(df) * 100:.1f}% of clean records")
@@ -1406,7 +1636,7 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
         neg = corr.idxmin()
         biggest = corr.abs().idxmax()
         st.markdown("<div class='insight-row'></div>", unsafe_allow_html=True)
-        i1, i2, i3 = st.columns(3)
+        i1, i2, i3 = st.columns(3, gap="large")
         with i1:
             insight(
                 "Positive driver",
@@ -1480,7 +1710,7 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Who is in each performance tier and which variables move with final grade the most.",
     )
 
-    g_l, g_r = st.columns([0.95, 1.05])
+    g_l, g_r = st.columns([0.95, 1.05], gap="medium")
     with g_l:
         seg_counts = (
             view["performance_segment"].value_counts()
@@ -1529,7 +1759,7 @@ def page_overview(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Demographics",
         "Performance distribution by age and gender across the selected cohort.",
     )
-    demo_left, demo_right = st.columns(2)
+    demo_left, demo_right = st.columns(2, gap="medium")
     with demo_left:
         age_bin = pd.cut(view["age"], bins=[16, 19, 22, 25, 28, 31],
                          labels=["17-18", "19-21", "22-24", "25-27", "28-30"])
@@ -1597,7 +1827,7 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
     top10 = view[view["final_grade"] >= view["final_grade"].quantile(0.9)].copy()
     bot10 = view[view["final_grade"] <= view["final_grade"].quantile(0.1)].copy()
 
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3, k4 = st.columns(4, gap="large")
     with k1:
         top_phone = top10["phone_usage_hours"].mean()
         cohort_phone = view["phone_usage_hours"].mean()
@@ -1637,7 +1867,8 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
     if not corr.empty:
         worst = corr.idxmin()
         screen_gap = top10["screen_time_hours"].mean() - bot10["screen_time_hours"].mean()
-        i1, i2 = st.columns(2)
+        st.markdown("<div class='insight-row'></div>", unsafe_allow_html=True)
+        i1, i2 = st.columns(2, gap="large")
         with i1:
             insight(
                 "Heaviest negative driver",
@@ -1655,8 +1886,8 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Each digital channel vs final grade",
         "Hex bins make the cloud of 20K rows readable, and the black line shows the binned average for each channel.",
     )
-    row1 = st.columns(2)
-    row2 = st.columns(2)
+    row1 = st.columns(2, gap="medium")
+    row2 = st.columns(2, gap="medium")
     cells = [row1[0], row1[1], row2[0], row2[1]]
     for cell, (col, title, color) in zip(cells, DIGITAL_CHANNELS):
         with cell:
@@ -1681,7 +1912,7 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Digital load tiers vs grade",
         "Tiers are built on total entertainment screen time (social + YouTube + gaming).",
     )
-    col_l, col_r = st.columns([1, 1])
+    col_l, col_r = st.columns([1, 1], gap="medium")
     with col_l:
         fig = px.box(
             view, x="digital_load", y="final_grade",
@@ -1716,7 +1947,7 @@ def page_digital(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Three-way views",
         "Two variables on the axes, a third encoded by color or position. Heatmaps reveal interaction effects.",
     )
-    three_l, three_r = st.columns(2)
+    three_l, three_r = st.columns(2, gap="medium")
     with three_l:
         sm_bins = pd.cut(view["social_media_hours"],
                          bins=[-0.1, 1, 2, 3, 4, 6, 10],
@@ -1779,7 +2010,7 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Effort scorecards",
         "Top-decile averages and the gap vs the overall cohort.",
     )
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3, k4 = st.columns(4, gap="large")
     with k1:
         coh = cohort["attendance_percentage"].mean()
         top = top10["attendance_percentage"].mean()
@@ -1821,7 +2052,8 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
                  "assignments_completed", "exercise_minutes"]].mean()
         gap_pct = (gap / view[gap.index].mean()) * 100
         biggest_gap = gap_pct.abs().idxmax()
-        i1, i2 = st.columns(2)
+        st.markdown("<div class='insight-row'></div>", unsafe_allow_html=True)
+        i1, i2 = st.columns(2, gap="large")
         with i1:
             insight(
                 "Strongest positive driver",
@@ -1839,7 +2071,7 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Effort vs final grade",
         "Two-way relationships between core effort metrics and final grade.",
     )
-    row1 = st.columns(2)
+    row1 = st.columns(2, gap="medium")
     with row1[0]:
         ac = view.groupby("assignments_completed", observed=True).agg(
             mean=("final_grade", "mean"),
@@ -1871,7 +2103,7 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
         add_binned_overlay(fig, view, "attendance_percentage", "final_grade")
         render_chart(style_fig(fig, height=380, legend_below=True))
 
-    row2 = st.columns(2)
+    row2 = st.columns(2, gap="medium")
     with row2[0]:
         sample = view.sample(min(len(view), 3500), random_state=22) if len(view) > 3500 else view.copy()
         fig = px.scatter(
@@ -1908,7 +2140,7 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Three-way interactions",
         "Where two effort dimensions combine, and how stress reshapes the study payoff.",
     )
-    row3 = st.columns(2)
+    row3 = st.columns(2, gap="medium")
     with row3[0]:
         att_band = pd.cut(view["attendance_percentage"],
                           bins=[0, 60, 70, 80, 90, 101],
@@ -1973,7 +2205,7 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Cognitive and wellness scorecards",
         "Top 10% students by final grade typically show higher focus and lower stress than the average cohort.",
     )
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3, k4 = st.columns(4, gap="large")
     with k1:
         coh = cohort["focus_score"].mean()
         top = top10["focus_score"].mean()
@@ -2006,7 +2238,8 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
 
     coffee_focus_corr = view[["coffee_intake_mg", "focus_score"]].corr().iloc[0, 1]
     stress_focus_corr = view[["stress_level", "focus_score"]].corr().iloc[0, 1]
-    i1, i2 = st.columns(2)
+    st.markdown("<div class='insight-row'></div>", unsafe_allow_html=True)
+    i1, i2 = st.columns(2, gap="large")
     with i1:
         insight(
             "Calm minds, sharper focus",
@@ -2025,7 +2258,7 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Two-way views",
         "Direct comparisons before any third dimension is layered on.",
     )
-    row1 = st.columns(2)
+    row1 = st.columns(2, gap="medium")
     with row1[0]:
         sample = view.sample(min(len(view), 3500), random_state=31) if len(view) > 3500 else view.copy()
         fig = px.scatter(
@@ -2067,7 +2300,7 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
         )
         render_chart(style_fig(fig, height=380, legend_below=True))
 
-    row2 = st.columns(2)
+    row2 = st.columns(2, gap="medium")
     with row2[0]:
         fig = px.violin(
             view, x="sleep_quality", y="final_grade",
@@ -2099,7 +2332,7 @@ def page_wellness(view: pd.DataFrame, df: pd.DataFrame) -> None:
         "Three-way interactions",
         "Two cognitive axes plus a third dimension (final grade or hierarchy) to reveal interaction effects.",
     )
-    row3 = st.columns(2)
+    row3 = st.columns(2, gap="medium")
     with row3[0]:
         focus_bins = pd.cut(view["focus_score"],
                             bins=[-0.1, 10, 20, 30, 45, 80],
@@ -2255,7 +2488,7 @@ def page_about(df: pd.DataFrame, miss_df: pd.DataFrame, raw_rows: int) -> None:
         "How the raw Kaggle file becomes the cohort behind every chart in this dashboard.",
     )
 
-    a, b = st.columns([1.25, 0.75])
+    a, b = st.columns([1.25, 0.75], gap="medium")
     with a:
         st.markdown(
             """
@@ -2361,6 +2594,7 @@ def main() -> None:
             )
 
     inject_nav_scroll_spy()
+    inject_popover_guard()
 
 
 if __name__ == "__main__":
