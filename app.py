@@ -911,15 +911,11 @@ def render_chart(fig: go.Figure) -> None:
 
 
 def kpi(label: str, value: str, note_html: str = "", info: str = "") -> None:
-    tip = ""
-    if info:
-        safe = info.replace('"', "&quot;")
-        tip = f'<span class="info-tip" title="{safe}" aria-label="{safe}">&#9432;</span>'
     st.markdown(
         f"""
         <div class="kpi">
             <div>
-                <div class="kpi-label">{label}{tip}</div>
+                <div class="kpi-label">{label}</div>
                 <div class="kpi-value">{value}</div>
             </div>
             <div class="kpi-note">{note_html}</div>
@@ -2016,8 +2012,7 @@ def page_effort(view: pd.DataFrame, df: pd.DataFrame) -> None:
         pct = (top - coh) / coh * 100 if coh else 0
         cls = "kpi-up" if pct > 0 else "kpi-down"
         kpi("Attendance (top 10% grade)", f"{top:.1f}%",
-            f"Cohort <b>{coh:.1f}%</b><br><span class='{cls}'>{pct:+.1f}%</span> vs cohort",
-            info="Average attendance for students in the top 10% of final grades vs the cohort average.")
+            f"Cohort <b>{coh:.1f}%</b><br><span class='{cls}'>{pct:+.1f}%</span> vs cohort")
     with k2:
         coh = cohort["assignments_completed"].mean()
         top = top10["assignments_completed"].mean()
