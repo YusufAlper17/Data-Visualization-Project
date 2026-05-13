@@ -69,8 +69,8 @@ The notebook `analysis.ipynb` contains the exploratory analysis and mirrors the 
 
 ## Team Members
 
-Yusuf Alper Ilhan  
+Yusuf Alper İlhan  
 Student ID: 150230318
 
-Bahadır Karadağ
+Bahadır Karadağ  
 Student ID: 150240326
