@@ -658,18 +658,17 @@ def inject_theme() -> None:
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 16px; height: 16px;
+                width: 18px; height: 18px;
                 margin-left: 6px;
-                border-radius: 50%;
-                background: #F4F4F5;
                 color: #52525B;
-                font-size: 10px;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 15px;
                 font-weight: 800;
+                line-height: 1;
                 cursor: help;
                 user-select: none;
-                border: 1px solid var(--grid);
             }
-            .info-tip:hover { background: #E4E4E7; color: #18181B; }
+            .info-tip:hover { color: #18181B; }
 
             div[data-testid="stMetric"] {
                 background: var(--card);
@@ -915,7 +914,7 @@ def kpi(label: str, value: str, note_html: str = "", info: str = "") -> None:
     tip = ""
     if info:
         safe = info.replace('"', "&quot;")
-        tip = f'<span class="info-tip" title="{safe}">i</span>'
+        tip = f'<span class="info-tip" title="{safe}" aria-label="{safe}">&#9432;</span>'
     st.markdown(
         f"""
         <div class="kpi">
