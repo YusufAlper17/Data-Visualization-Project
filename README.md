@@ -65,14 +65,12 @@ The notebook `analysis.ipynb` contains the exploratory analysis and mirrors the 
 - `requirements.txt`: Python dependencies for running the dashboard.
 - `.streamlit/config.toml`: optional Streamlit theme/config file for consistent appearance.
 
-`__pycache__` is not required for submission.
 
-## Authors
+
+## Team Members
 
 Yusuf Alper Ilhan  
-AI and Data Engineering, Istanbul Technical University  
 Student ID: 150230318
 
-Bahadir Karadag  
-AI and Data Engineering, Istanbul Technical University  
+Bahadır Karadağ
 Student ID: 150240326
